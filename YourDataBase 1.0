@@ -1,0 +1,87 @@
+import os
+import csv
+
+def create_folder():
+    folder_name = 'data'
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    return folder_name
+
+def wait_for_files():
+    input("Поместите CSV-файлы в папку 'data' и нажмите Enter для продолжения...")
+
+def get_search_parameters():
+    print("\nВведите данные для поиска (можно заполнить одно или несколько полей):")
+    return {
+        'phone': input("Телефон: ").strip().lower(),
+        'address': input("Адрес: ").strip().lower(),
+        'email': input("Email: ").strip().lower(),
+        'snils': input("СНИЛС: ").strip().lower(),
+        'fio': input("ФИО: ").strip().lower()
+    }
+
+def normalize_text(text):
+    return ' '.join(text.split()).lower()
+
+def check_row(row, search_params):
+    found = {}
+    for key, value in search_params.items():
+        if not value:
+            continue
+            
+        for cell in row:
+            normalized_cell = normalize_text(cell)
+            if value in normalized_cell:
+                found[key] = cell.strip()
+                break
+        if value and key not in found:
+            return None
+    return found if found else None
+
+def scan_files(folder, search_params):
+    results = []
+    for filename in os.listdir(folder):
+        if not filename.endswith('.csv'):
+            continue
+            
+        filepath = os.path.join(folder, filename)
+        try:
+            with open(filepath, 'r', encoding='utf-8') as file:
+                reader = csv.reader(file)
+                for row_num, row in enumerate(reader, 1):
+                    found = check_row(row, search_params)
+                    if found:
+                        results.append((filename, row_num, found))
+        except Exception as e:
+            print(f"Ошибка при обработке файла {filename}: {e}")
+    return results
+
+def print_report(results, search_params):
+    if not results:
+        print("\nСовпадения не найдены")
+        return
+        
+    print("\nРезультаты поиска:")
+    active_fields = [k for k, v in search_params.items() if v]
+    for filename, row_num, found in results:
+        print(f"\nФайл: {filename}")
+        print(f"Строка: {row_num}")
+        for field in active_fields:
+            print(f"{field.upper()}: {found[field]}")
+
+def main():
+    target_folder = create_folder()
+    print(f"Папка для файлов: {target_folder}")
+    wait_for_files()
+    
+    search_params = get_search_parameters()
+    if all(not v for v in search_params.values()):
+        print("\nОшибка: Не введены данные для поиска!")
+        return
+    
+    print("\nИдёт поиск...")
+    matches = scan_files(target_folder, search_params)
+    print_report(matches, search_params)
+
+if __name__ == "__main__":
+    main()
